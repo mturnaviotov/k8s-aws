@@ -1,0 +1,303 @@
+---
+
+# ansible-playbook -i inventory k8.yml -e "cp_dns_name=cp.example.com" -e "he_net_password=your_he_password"
+
+# =================================================================
+# PART 1: COMMON TASKS (EXECUTED ON ALL K8S NODES)
+# =================================================================
+- name: 1. PREPARE ALL KUBERNETES NODES (CP and Workers)
+  hosts: k8s_cluster
+  become: true
+  vars:
+    k8s_version: "1.35"
+    # ext_domain: "test.mturnaviotov.info"
+    # int_domain: "zone.internal"
+    # he_net_password: "{{ he_net_password | default('') }}"
+    # cp_dns_name: "{{ cp_dns_name | default('') }}"
+    # # nginx_vhosts:
+    # - service_name: keycloak
+    # - service_name: keyvault
+    # - service_name: testapp
+    # - service_name: grafana
+
+  tasks:
+    - name: Ensure packages required for setup are installed
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - apt-transport-https
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+        update_cache: true
+
+    - name: Disable swap (Initial step from user)
+      ansible.builtin.shell: |
+        swapoff -a
+        sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+    - name: Load Kernel Modules and Enable netfilter
+      ansible.builtin.copy:
+        content: |
+          overlay
+          br_netfilter
+        dest: /etc/modules-load.d/k8s.conf
+      
+    - name: Configure sysctl for Kubernetes Networking
+      ansible.builtin.copy:
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+        dest: /etc/sysctl.d/k8s.conf
+      
+    - name: Apply sysctl parameters
+      ansible.builtin.command: sysctl --system
+
+    # --- Container Runtime (Containerd) Setup ---
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+        
+    - name: Add Docker APT repository
+      ansible.builtin.apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts["distribution_release"] }} stable
+        state: present
+        filename: docker
+
+    - name: Install containerd
+      ansible.builtin.apt:
+        name: containerd.io
+        state: present
+        update_cache: true
+        
+    - name: Configure containerd to use systemd cgroup driver
+      ansible.builtin.shell: |
+        containerd config default | tee /etc/containerd/config.toml > /dev/null
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+      notify: Restart containerd
+
+    # --- Kubeadm, Kubelet, Kubectl Installation ---
+    - name: Download Kubernetes GPG key
+      ansible.builtin.shell: |
+        rm -rf /etc/apt/keyrings/kubernetes-apt-keyring.gpg || true
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      become: true
+ 
+    - name: Add Kubernetes APT repository (using signed-by)
+      ansible.builtin.apt_repository:
+        repo: deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /
+        state: present
+        filename: /etc/apt/sources.list.d/k8.list
+        update_cache: yes
+
+    - name: Install kubelet, kubeadm, kubectl
+      ansible.builtin.apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: true
+        
+    - name: Hold Kube packages
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Create systemd drop-in directory for kubelet
+      ansible.builtin.file:
+        path: /etc/systemd/system/kubelet.service.d
+        state: directory
+        
+    - name: Apply adjusted hard eviction threshold (e.g., 50Mi instead of 100Mi)
+      ansible.builtin.copy:
+        content: |
+          [Service]
+          Environment="KUBELET_EXTRA_ARGS=--eviction-hard=memory.available<50Mi --eviction-minimum-reclaim=memory.available=0Mi"
+        dest: /etc/systemd/system/kubelet.service.d/20-custom-eviction.conf
+      notify: Restart Kubelet
+
+  handlers:
+    - name: Restart Kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        daemon_reload: true
+        state: restarted      
+
+    - name: Restart containerd
+      ansible.builtin.systemd:
+        name: containerd
+        state: restarted
+        enabled: true
+
+# =================================================================
+# PART 2: CONTROL PLANE INITIALIZATION (EXECUTED ONLY ON CP)
+# =================================================================
+- name: 2. INITIALIZE CONTROL PLANE
+  hosts: control_plane
+  become: true
+  gather_facts: true
+  vars:
+    pod_cidr: "10.244.0.0/16"
+    cp_dns_name: "{{ cp_dns_name | default('') }}"
+    nginx_vhosts:
+    - service_name: keycloak
+
+  tasks:
+  - name: Get Private IP Address (from VPC)
+    set_fact:
+      private_ip: "{{ ansible_default_ipv4.address }}"
+      ## ansible_facts["default_ipv4.address"]
+
+  - name: Kubeadm Init (Control Plane setup)
+    ansible.builtin.command: >
+      kubeadm init 
+      --pod-network-cidr={{ pod_cidr }} 
+      --apiserver-advertise-address={{ private_ip }}
+      --ignore-preflight-errors=Swap,NumCPU,Mem
+      {% if cp_dns_name %}
+      --apiserver-cert-extra-sans={{ cp_dns_name }} 
+      {% endif %}
+    register: kubeadm_init_result
+    args:
+      creates: /etc/kubernetes/admin.conf
+
+  - name: Set up kubectl configuration for user
+    ansible.builtin.shell: |
+      mkdir -p $HOME/.kube
+      rm -fr $HOME/.kube/config
+      sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      sudo chown $USER:$USER $HOME/.kube/ -R
+      mkdir -p /home/ubuntu/.kube
+      rm -fr /home/ubuntu/.kube/config
+      sudo cp -i /etc/kubernetes/admin.conf /home/{{ ansible_user }}/.kube/config
+      sudo chown {{ ansible_user }}:{{ ansible_user }} /home/{{ ansible_user }}/.kube/ -R
+
+  - name: Replace API server IP with DNS name in user's kubeconfig
+    ansible.builtin.replace:
+      path: /home/{{ ansible_user }}/.kube/config
+      regexp: 'server: https://{{ private_ip }}:6443'
+      replace: 'server: https://{{ cp_dns_name }}:6443'
+      backup: yes
+
+  - name: Get the join command token
+    ansible.builtin.command: kubeadm token create --print-join-command
+    register: join_command_output
+    
+  - name: Store join command for Workers
+    ansible.builtin.set_fact:
+      kube_join_command: "{{ join_command_output.stdout }}"
+  
+  - name: Install Flannel CNI (Container Network Interface) as we don't have a network plugin
+    ansible.builtin.shell: |
+      kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+
+  - name: Fetch the final kubeconfig to local working directory
+    ansible.builtin.fetch:
+      src: /home/{{ ansible_user }}/.kube/config
+      dest: "{{ lookup('env','HOME') }}/.kube/config"
+      flat: yes 
+    # delegate_to: localhost
+    # become: false
+
+  - name: Create rc.local directory
+    ansible.builtin.file:
+      path: /etc/rc.local
+      state: directory
+      owner: root
+      group: root
+      mode: '0755'
+
+  - name: Create IP update script
+    ansible.builtin.copy:
+      content: |
+        DNS={{ cp_dns_name }}
+        PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+        PWD={{ he_net_password }}
+        curl "https://dyn.dns.he.net/nic/update?hostname=${DNS}&password=${PWD}&myip=${PUBLIC_IP}"
+        echo "{\"status\": \"updated\", \"timestamp\": \"$(date)\", \"ip\": \"${PUBLIC_IP}\"}"
+      dest: /etc/rc.local/ip.sh
+      owner: root
+      group: root
+      mode: '0700'
+
+  - name: Update crontab
+    ansible.builtin.lineinfile:
+      regexp: '^#$'
+      line: |
+        # Custom cron jobs
+        # */10 *  * * *   root    test -x /etc/rc.local/ip.sh || /etc/rc.local/ip.sh >> /var/log/ip_update.log
+        @reboot /etc/rc.local/ip.sh
+        @daily certbot renew --dry-run
+        #
+      dest: /etc/crontab
+
+  - name: Set up external IP
+    ansible.builtin.shell: |
+      /etc/rc.local/ip.sh
+
+  # - name: Nginx vHost for Kubernetes Services
+  #   become: true
+  #   ansible.builtin.template:
+  #     src: nginx.tpl
+  #     dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
+  #     owner: root
+  #     group: root
+  #     mode: '0644'
+  #   loop: "{{ nginx_vhosts }}"
+  #   notify: Reload Nginx
+
+  # - name: Create SSL certificates with Certbot for Nginx
+  #   ansible.builtin.shell: |
+  #     certbot --nginx -n --agree-tos --email admin@{{ domain }} -d {{ item.service_name }}.{{ domain }} --redirect
+  #   loop: "{{ nginx_vhosts }}"
+  #   args:
+  #     creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ domain }}/fullchain.pem"
+  #   notify: Reload Nginx
+
+  handlers:
+  - name: Reload Nginx
+    ansible.builtin.service:
+      name: nginx
+      state: reloaded
+    #  become: true        
+
+# =================================================================
+# PART 3: WORKER NODE JOIN (EXECUTED ONLY ON WORKERS)
+# =================================================================
+- name: 3. JOIN WORKER NODES TO CLUSTER
+  hosts: workers
+  become: true
+  gather_facts: false
+  
+  tasks:
+  - name: Get join command from Control Plane host
+    ansible.builtin.set_fact:
+      join_command: "{{ hostvars[groups['control_plane'][0]].kube_join_command }}"
+      
+  - name: Join Worker Node to Kubernetes Cluster
+    ansible.builtin.command: "{{ join_command }}"
+    args:
+      creates: /etc/kubernetes/kubelet.conf
+
+# =================================================================
+# PART 4: FINAL NODE RESTART (EXECUTED ON ALL NODES)
+# =================================================================
+- name: 4. Final Node Restart
+  hosts: k8s_cluster
+  become: true
+  gather_facts: false
+  
+  tasks:
+  - name: Restart All Nodes to apply all changes
+    ansible.builtin.reboot:

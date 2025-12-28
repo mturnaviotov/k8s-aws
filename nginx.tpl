@@ -1,10 +1,12 @@
 upstream backend_{{ item.service_name }} {
-  server {{ item.service_name }}:8080;
+  server {{ item.service_name }}.{{ item.namespace }}.svc.cluster.local:{{ item.port }};
 }
 
 server {
-  listen 80;
-  server_name {{ item.service_name }}.{{ ext_domain }};
+  root /var/www/html;
+
+  index index.html index.htm index.nginx-debian.html;
+  server_name {{ item.service_name }}.{{ ext_domain }}; # managed by Certbot
 
   location / {
     proxy_pass http://backend_{{ item.service_name }};
@@ -13,6 +15,7 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
   }

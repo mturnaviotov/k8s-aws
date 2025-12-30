@@ -205,6 +205,13 @@
         kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.crds.yaml
         kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
 
+    - name: Install Local Path Storage and set it as default
+      ansible.builtin.shell: |
+        mkdir -p /opt/local-path-provisioner
+        chmod 777 /opt/local-path-provisioner
+        kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+        kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
     - name: Fetch the final kubeconfig to local working directory
       ansible.builtin.fetch:
         src: /home/{{ ansible_user }}/.kube/config
@@ -301,6 +308,11 @@
     - name: Get join command from Control Plane host
       ansible.builtin.set_fact:
         join_command: "{{ hostvars[groups['control_plane'][0]].kube_join_command }}"
+
+    - name: Set Local Path Storage
+      ansible.builtin.shell: |
+        mkdir -p /opt/local-path-provisioner
+        chmod 777 /opt/local-path-provisioner
 
     - name: Join Worker Node to Kubernetes Cluster
       ansible.builtin.command: "{{ join_command }}"

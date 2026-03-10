@@ -152,7 +152,7 @@
   tasks:
     - name: Get Private IP Address (from VPC)
       set_fact:
-        private_ip: "{{ ansible_default_ipv4.address }}"
+        private_ip: ansible_facts["default_ipv4.address"]
         ## ansible_facts["default_ipv4.address"]
 
     - name: Kubeadm Init (Control Plane setup)
@@ -198,12 +198,17 @@
       ansible.builtin.shell: |
         kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
-    - name: Install Basic CRDs
+    - name: Install Basic Networking CRDs
       ansible.builtin.shell: |
         kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.6/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
         kubectl apply -f https://raw.githubusercontent.com/traefik/traefik/v3.6/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
         kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.19.2/cert-manager.crds.yaml
-        kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
+
+    - name: Install Basic CRDs for ArgoCD
+      ansible.builtin.shell: |
+        kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/appproject-crd.yaml
+        kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/application-crd.yaml
+        kubectl apply --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/applicationset-crd.yaml
 
     - name: Install Local Path Storage and set it as default
       ansible.builtin.shell: |
@@ -259,42 +264,16 @@
         regexp: "^$"
         path: /etc/systemd/resolved.conf
         line: |
-          DNS=10.96.0.10 
-          Domains=~. zone.internal. svc.cluster.local
-      # 192.168.0.52 and zone.internal doesn't work for now.
-      notify: Reload Resolver
+          DNS=10.96.0.10
+          Domains=~. svc.cluster.local
+    # zone.internal and PowerDNS magic doesn't work for now.
+    # notify: Reload Resolver # We will reboot all nodes, so we don't need to reload resolver
 
-    - name: Nginx vHosts for Kubernetes Services
-      become: true
-      ansible.builtin.template:
-        src: nginx.tpl
-        dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
-        owner: root
-        group: root
-        mode: "0644"
-      loop: "{{ nginx_vhosts }}"
-      args:
-        creates: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
-      notify: Reload Nginx
-
-    - name: Create SSL certificates with Certbot for Nginx
-      ansible.builtin.shell: |
-        certbot --nginx -n --agree-tos --email admin@{{ ext_domain }} -d {{ item.service_name }}.{{ ext_domain }} --redirect
-      loop: "{{ nginx_vhosts }}"
-      args:
-        creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
-      notify: Reload Nginx
-
-  handlers:
-    - name: Reload Nginx
-      ansible.builtin.service:
-        name: nginx
-        state: reloaded
-
-    - name: Reload Resolver
-      ansible.builtin.service:
-        name: systemd-resolved
-        state: reloaded
+  # Disabled due to final reboot
+  #   - name: Reload Resolver
+  #     ansible.builtin.service:
+  #       name: systemd-resolved
+  #       state: reloaded
 
 # =================================================================
 # PART 3: WORKER NODE JOIN (EXECUTED ONLY ON WORKERS)

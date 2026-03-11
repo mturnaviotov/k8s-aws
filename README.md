@@ -82,7 +82,7 @@ Once the infrastructure is ready and the `inventory` file is generated, you can 
 
 ### Setup basic cluster
 
-#### 0. Run the `main.yml` playbook with the required variables in comman line:
+#### 0. Run the `main.yml` playbook with the required variables in comman line
 
 I use free dns.he.net with dynamic dns record for whole cluster services via HE.net api and my private domain.
 Role based variables you can find in role/${name}/defaults
@@ -95,6 +95,7 @@ ansible-playbook -i inventory main.yml \
 ```
 
 You can use partial configuration via tags if you need. You can find available tags at the main.yaml in roles, and use as in this example
+
 ```
 ansible-playbook -i inventory main.yml \
   -e "cp_dns_name=cp.example.com" \
@@ -106,27 +107,31 @@ ansible-playbook -i inventory main.yml \
 #### 1. Install basic Nginx for KeyCloak and Vault as prerequrements for terraform based infrastructure deploy
 
 ```
-ansible-playbook -i inventory nginx.yml -e "ext_domain=test.mturnaviotov.info" --tags=nginx_basics
+ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com" --tags=nginx_basics
 ```
 
 #### 2. KeyCloak preparation
+
 - Go to the web UI for KeyCloak with provided via text file password
 - go to clients -> choose 'admin-cli'
 - enable client authentication, save
 - go to credentials tab and copy client secret to terraform.vars in your infra repo
 
 #### 3. Vault unseal
+
 - Go to the web UI for Vault and unseal it via web interface
 - save api token and keys to your infra repo
 
 #### 4. Install infra
+
 - Use your repo with infra to deploy all stuff to cluster
 
 #### 5. Install Nginx for all applications
+
 All of them should be resolved via internal ${service}.${namespace}.svc.cluster.local before nginx will work with upstreams
 
 ```
-ansible-playbook -i inventory nginx.yml -e "ext_domain=test.mturnaviotov.info" --tags=nginx_all
+ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com" --tags=nginx_all
 ```
 
 ### Variables
@@ -135,7 +140,7 @@ ansible-playbook -i inventory nginx.yml -e "ext_domain=test.mturnaviotov.info" -
 | --- | --- |
 | `cp_dns_name` | DNS name for the Control Plane (API Server). |
 | `he_net_password` | Password for dynamic DNS update (he.net) - optional if script enabled, you can replace it with your own script. Control plane node will be updated with this script at the node restart to update DNS name via he.net API server. |
-| `ext_domain` | External domain for Nginx/SSL external/public usage (e.g., `test.example.com`). |
+| `ext_domain` | External domain for Nginx/SSL external/public usage (e.g., `your.domain.com`). |
 
 ---
 

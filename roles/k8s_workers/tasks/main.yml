@@ -1,0 +1,22 @@
+---
+- name: Worker Node Setup
+  block:
+  - name: Get join command from control plane 0
+    ansible.builtin.shell: kubeadm token create --print-join-command
+    delegate_to: "{{ groups['control_plane'][0] }}"
+    register: kube_join_command
+    run_once: true
+
+  - name: Store join command for Workers
+    ansible.builtin.set_fact:
+      kube_join_command: "{{ kube_join_command.stdout }}"
+
+  - name: Join Worker Node to Kubernetes Cluster
+    ansible.builtin.command: "{{ kube_join_command }}"
+    args:
+      creates: /etc/kubernetes/kubelet.conf
+
+  - name: Set Local Path Storage
+    ansible.builtin.shell: |
+      mkdir -p /opt/local-path-provisioner
+      chmod 777 /opt/local-path-provisioner

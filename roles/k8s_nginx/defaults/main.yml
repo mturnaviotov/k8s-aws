@@ -1,0 +1,33 @@
+---
+ext_domain: "{{ ext_domain | default('') }}"
+nginx_basics:
+  - service_name: keycloak
+    namespace: auth
+    port: 8080
+  - service_name: vault
+    namespace: vault
+    port: 8200
+nginx_vhosts:
+  - service_name: traefik
+    namespace: ingress
+    port: 80
+  - service_name: jenkins
+    namespace: jenkins
+    port: 8080
+  - service_name: argocd
+    host: argocd-server
+    namespace: argocd
+    port: 80
+  - service_name: alloy
+    namespace: mon
+    port: 12345
+  - service_name: loki
+    namespace: mon
+    port: 3100
+  - service_name: grafana
+    host: kps-grafana
+    namespace: mon
+    port: 80
+  - service_name: todo
+    namespace: todo
+    port: 80

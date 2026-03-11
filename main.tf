@@ -41,6 +41,7 @@ resource "aws_security_group" "ssh_access" {
     protocol    = "-1"
 
     self = true
+
   }
 
   egress {
@@ -48,6 +49,11 @@ resource "aws_security_group" "ssh_access" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name    = "ssh-access-sg"
+    Project = "TerraformCluster"
   }
 }
 
@@ -75,12 +81,17 @@ resource "aws_instance" "cp_servers" {
   ipv6_address_count = 1
   subnet_id = data.aws_subnet.my_subnet.id
 
-  security_groups = [aws_security_group.ssh_access.id]
+  vpc_security_group_ids = [aws_security_group.ssh_access.id]
   key_name        = aws_key_pair.app-server-key.key_name
+
   tags = {
     Name    = "cp-${count.index + 1}"
     Project = "TerraformCluster"
   }
+
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 resource "aws_instance" "workers_servers" {
@@ -88,17 +99,25 @@ resource "aws_instance" "workers_servers" {
   ami = data.aws_ami.ubuntu.id
   instance_type = var.worker_type
   subnet_id = data.aws_subnet.my_subnet.id #aws_subnet.example.id
-  security_groups = [aws_security_group.ssh_access.id]
+  vpc_security_group_ids = [aws_security_group.ssh_access.id]
   key_name        = aws_key_pair.app-server-key.key_name
   tags = {
     Name    = "worker-${count.index + 1}"
     Project = "TerraformCluster"
   }
+
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
 resource "aws_key_pair" "app-server-key" {
   key_name   = "app-server-key"
   public_key = file("~/.ssh/id_rsa.pub")
+
+  tags = {
+    Project = "TerraformCluster"
+  }
 }
 
 resource "local_file" "ansible_inventory" {

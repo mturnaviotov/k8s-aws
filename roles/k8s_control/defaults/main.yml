@@ -1,0 +1,5 @@
+---
+pod_cidr: "10.244.0.0/16"
+cp_dns_name: "{{ cp_dns_name | default('') }}"
+ext_domain: "{{ ext_domain | default('') }}"
+he_net_password: "{{ he_net_password | default('') }}"

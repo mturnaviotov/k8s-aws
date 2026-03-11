@@ -1,0 +1,46 @@
+---
+- name: Deploy KeyCloak
+  block: 
+  - name: Create random KeyCloak password
+    ansible.builtin.set_fact:
+      keycloak_password: "{{ lookup('password', '/dev/null length=12 chars=ascii_letters,digits') }}"
+  - name: Print the password
+    ansible.builtin.debug:
+      msg: "Generated password for Keycloak: {{ keycloak_password }}"
+  - name: Fetch keycloak manifest
+    ansible.builtin.get_url:
+      url: https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/refs/heads/main/kubernetes/keycloak.yaml
+      dest: ./keycloak.yaml
+  - name: Modify keycloak manifest for new password
+    ansible.builtin.replace:
+      path: ./keycloak.yaml
+      regexp: '(KC_BOOTSTRAP_ADMIN_PASSWORD\s+value:)\s*".*"'
+      replace: '\1 "{{ keycloak_password }}"'
+  - name: Apply keycloak manifest
+    ansible.builtin.shell: |
+      kubectl create ns auth && kubectl -n auth apply -f ./keycloak.yaml
+      rm -f ./keycloak.yaml
+
+- name: Deploy Vault
+  block: 
+  - name: Install Vault with Helm
+    ansible.builtin.shell: |
+      helm repo add hashicorp https://helm.releases.hashicorp.com
+      helm repo update
+      helm install -n vault vault hashicorp/vault --create-namespace
+
+- name: Save KeyCloak password
+  block:
+  - name: Save password to file
+    delegate_to: localhost
+    become: false
+    ansible.builtin.lineinfile:
+      path: keycloak_password.txt
+      create: yes
+      line: "{{ keycloak_password }}"
+
+    # If you want to save Vault password, use it in dev mode and generate it in the playbook, you can uncomment the following task.
+    # - name: Save Vault password
+    #   ansible.builtin.lineinfile:
+    #     path: vault_password.txt
+    #     line: "{{ vault_password }}"

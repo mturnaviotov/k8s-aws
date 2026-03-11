@@ -1,0 +1,60 @@
+---
+# ansible-playbook -i inventory k8.yml -e "cp_dns_name=cp.example.com" -e "he_net_password=your_he_password"  -e "ext_domain=your.domain.com"
+
+# =================================================================
+# PART 1: COMMON TASKS (EXECUTED ON ALL K8S NODES)
+# =================================================================
+- name: K8S Cluster Setup
+  hosts: k8s_cluster
+  become: true
+  
+  roles:
+    - role: k8s_setup
+      tags: k8s-setup
+
+# =================================================================
+# PART 2: CONTROL PLANE INITIALIZATION (EXECUTED ONLY ON CP)
+# =================================================================
+- name: K8S Control Plane Setup
+  hosts: control_plane[0]
+  become: true
+  
+  roles:
+    - role: k8s_control
+      tags: k8s-control
+
+# =================================================================
+# PART 3: WORKER NODE JOIN (EXECUTED ONLY ON WORKERS)
+# =================================================================
+- name: K8S Workers Setup
+  hosts: workers
+  become: true
+  gather_facts: false
+  roles:
+    - role: k8s_workers
+      tags: k8s-workers
+
+# =================================================================
+# PART 4: FINAL NODE RESTART (EXECUTED ON ALL NODES)
+# =================================================================
+- name: All Nodes Final Reboot
+  hosts: k8s_cluster
+  tags: k8s-control,k8s-workers
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Restart All Nodes to apply all changes
+      ansible.builtin.reboot:
+
+# =================================================================
+# PART 5: Keycloak Deployment (EXECUTED ONLY ON CP)
+# =================================================================
+
+- name: Install Basic Apps (KeyCloak, Vault)
+  hosts: control_plane[0]
+  become: true
+  gather_facts: false
+  roles:
+    - role: k8s_apps
+      tags: k8s-apps

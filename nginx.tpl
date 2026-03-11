@@ -1,10 +1,13 @@
 upstream backend_{{ item.service_name }} {
+  {% if item.host is defined  %}
+  server {{ item.host }}.{{ item.namespace }}.svc.cluster.local:{{ item.port }};
+  {% else %}
   server {{ item.service_name }}.{{ item.namespace }}.svc.cluster.local:{{ item.port }};
+  {% endif %}
 }
 
 server {
   root /var/www/html;
-
   index index.html index.htm index.nginx-debian.html;
   server_name {{ item.service_name }}.{{ ext_domain }}; # managed by Certbot
 
@@ -25,4 +28,11 @@ server {
     internal;
     root /usr/share/nginx/html;
   }
+
+#  listen [::]:443 ssl; # managed by Certbot
+#  listen 443 ssl; # managed by Certbot
+#  ssl_certificate /etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem; # managed by Certbot
+#  ssl_certificate_key /etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/privkey.pem; # managed by Certbot
+#  include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+#  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }

@@ -6,7 +6,7 @@ This project contains **Terraform** code to provision infrastructure on AWS and 
 
 1. **Infrastructure (Terraform)**:
    - Provisions EC2 instances for Control Plane and Worker nodes.
-   - Configures Security Groups.
+   - Configures AWS Firewall Security Groups.
    - Generates an ansible `inventory` file automatically.
 
 2. **Configuration (Ansible)**:
@@ -16,7 +16,6 @@ This project contains **Terraform** code to provision infrastructure on AWS and 
      - Sets up `kubectl` for the user.
      - Installs Flannel CNI.
      - Installs basic CRDs (Traefik, Cert-Manager, ArgoCD).
-     - Configures Nginx as a reverse proxy for services.
      - Automates SSL certificates via Certbot.
    - **Worker Join**: Joins worker nodes to the cluster.
    - **Finalization**: Reboots all nodes.
@@ -35,7 +34,7 @@ Navigate to the project directory.
 
 ### Configuration
 
-Create a `terraform.tfvars` file (or use `terraform.tfvars.default` as a template) to configure your specific settings:
+Create a `terraform.tfvars` file (use `terraform.tfvars.default` as a template) to configure your specific settings:
 
 ```hcl
 access_key   = "YOUR_AWS_ACCESS_KEY"
@@ -81,15 +80,53 @@ Once the infrastructure is ready and the `inventory` file is generated, you can 
 - SSH access to the target nodes (configured via the key pair used in Terraform).
 - The `inventory` file present in the directory.
 
-### Usage
+### Setup basic cluster
 
-Run the `k8.yml` playbook with the necessary variables:
+#### 0. Run the `main.yml` playbook with the required variables in comman line:
+
+I use free dns.he.net with dynamic dns record for whole cluster services via HE.net api and my private domain.
+Role based variables you can find in role/${name}/defaults
 
 ```bash
-ansible-playbook -i inventory k8.yml \
+ansible-playbook -i inventory main.yml \
   -e "cp_dns_name=cp.example.com" \
   -e "he_net_password=your_he_password" \
   -e "ext_domain=your.domain.com"
+```
+
+You can use partial configuration via tags if you need. You can find available tags at the main.yaml in roles, and use as in this example
+```
+ansible-playbook -i inventory main.yml \
+  -e "cp_dns_name=cp.example.com" \
+  -e "he_net_password=your_he_password" \
+  -e "ext_domain=your.domain.com"
+  --tags="k8s-apps"
+```
+
+#### 1. Install basic Nginx for KeyCloak and Vault as prerequrements for terraform based infrastructure deploy
+
+```
+ansible-playbook -i inventory nginx.yml -e "ext_domain=test.mturnaviotov.info" --tags=nginx_basics
+```
+
+#### 2. KeyCloak preparation
+- Go to the web UI for KeyCloak with provided via text file password
+- go to clients -> choose 'admin-cli'
+- enable client authentication, save
+- go to credentials tab and copy client secret to terraform.vars in your infra repo
+
+#### 3. Vault unseal
+- Go to the web UI for Vault and unseal it via web interface
+- save api token and keys to your infra repo
+
+#### 4. Install infra
+- Use your repo with infra to deploy all stuff to cluster
+
+#### 5. Install Nginx for all applications
+All of them should be resolved via internal ${service}.${namespace}.svc.cluster.local before nginx will work with upstreams
+
+```
+ansible-playbook -i inventory nginx.yml -e "ext_domain=test.mturnaviotov.info" --tags=nginx_all
 ```
 
 ### Variables
@@ -110,6 +147,6 @@ ansible-playbook -i inventory k8.yml \
   - `inventory.tpl`: Template for generating the Ansible inventory.
 
 - **Ansible**:
-  - `k8.yml`: Main playbook.
+  - `main.yml`: Main playbook.
   - `inventory`: Generated inventory file from terraform .
   - `nginx.tpl`: Nginx configuration template for external/public usage.

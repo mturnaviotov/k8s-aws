@@ -75,14 +75,14 @@ data "aws_ami" "ubuntu" {
 }
 
 resource "aws_instance" "cp_servers" {
-  count = var.cp_count
-  ami = data.aws_ami.ubuntu.id
-  instance_type = var.cp_type
+  count              = var.cp_count
+  ami                = data.aws_ami.ubuntu.id
+  instance_type      = var.cp_type
   ipv6_address_count = 1
-  subnet_id = data.aws_subnet.my_subnet.id
+  subnet_id          = data.aws_subnet.my_subnet.id
 
   vpc_security_group_ids = [aws_security_group.ssh_access.id]
-  key_name        = aws_key_pair.app-server-key.key_name
+  key_name               = aws_key_pair.app-server-key.key_name
 
   tags = {
     Name    = "cp-${count.index + 1}"
@@ -95,12 +95,12 @@ resource "aws_instance" "cp_servers" {
 }
 
 resource "aws_instance" "workers_servers" {
-  count = var.worker_count
-  ami = data.aws_ami.ubuntu.id
-  instance_type = var.worker_type
-  subnet_id = data.aws_subnet.my_subnet.id #aws_subnet.example.id
+  count                  = var.worker_count
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.worker_type
+  subnet_id              = data.aws_subnet.my_subnet.id #aws_subnet.example.id
   vpc_security_group_ids = [aws_security_group.ssh_access.id]
-  key_name        = aws_key_pair.app-server-key.key_name
+  key_name               = aws_key_pair.app-server-key.key_name
   tags = {
     Name    = "worker-${count.index + 1}"
     Project = "TerraformCluster"
@@ -130,5 +130,5 @@ resource "local_file" "ansible_inventory" {
 
 output "ansible_run" {
   description = "Ansible run command"
-  value       = "ansible-playbook -i inventory k8.yml -e 'cp_dns_name=cp.example.com' -e 'he_net_password=dynamic_dns_record_password_here'"
+  value       = "ansible-playbook -i inventory main.yml -e 'cp_dns_name=cp.your.domain.com' -e 'he_net_password=dynamic_dns_record_password_here'"
 }

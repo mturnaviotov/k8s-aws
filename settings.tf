@@ -33,7 +33,7 @@ variable "cp_count" {
 
 variable "cp_type" {
   description = "Type of control plane nodes"
-  default     = "t3.small"
+  default     = "t3.large"
 }
 
 variable "worker_count" {
@@ -43,7 +43,7 @@ variable "worker_count" {
 
 variable "worker_type" {
   description = "Type of worker nodes"
-  default     = "t3.medium"
+  default     = "t3.large"
 }
 
 # =========================================

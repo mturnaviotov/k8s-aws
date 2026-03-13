@@ -2,7 +2,9 @@ access_key = "IAM user access key"
 secret_key = "IAM user secret key"
 vpc_id     = "VPC ID where resources will be created"
 region       = "eu-north-1"
+
+# Very basic setup for test purposes - 1,2 application
 cp_count     = 1
-cp_type      = "t3.micro"
-worker_count = 2
-worker_type  = "t3.medium"
+cp_type      = "t3.large"
+worker_count = 3
+worker_type  = "t3.large"

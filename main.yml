@@ -7,10 +7,10 @@
 - name: K8S Cluster Setup
   hosts: k8s_cluster
   become: true
-  
+
   roles:
-    - role: k8s_setup
-      tags: k8s-setup
+    - role: k8s_prerequisites
+      tags: k8s-prerequisites
 
 # =================================================================
 # PART 2: CONTROL PLANE INITIALIZATION (EXECUTED ONLY ON CP)
@@ -18,7 +18,7 @@
 - name: K8S Control Plane Setup
   hosts: control_plane[0]
   become: true
-  
+
   roles:
     - role: k8s_control
       tags: k8s-control
@@ -30,6 +30,7 @@
   hosts: workers
   become: true
   gather_facts: false
+
   roles:
     - role: k8s_workers
       tags: k8s-workers
@@ -55,6 +56,7 @@
   hosts: control_plane[0]
   become: true
   gather_facts: false
+
   roles:
     - role: k8s_apps
       tags: k8s-apps

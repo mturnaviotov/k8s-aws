@@ -36,9 +36,6 @@
         replace: "server: https://{{ cp_dns_name }}:6443"
         backup: yes
 
-    - name: Install basic deployments
-      include_tasks: install_basic_deployments.yml
-
     - name: Fetch the final kubeconfig to local working directory
       ansible.builtin.fetch:
         src: /home/{{ ansible_user }}/.kube/config
@@ -88,3 +85,6 @@
         line: |
           DNS=10.96.0.10 8.8.8.8 2001:4860:4860::8888
           Domains=~svc.cluster.local ~.
+
+    - name: Install basic deployments
+      include_tasks: install_basic_deployments.yml

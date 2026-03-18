@@ -1,0 +1,57 @@
+---
+- name: Ensure packages required for setup are installed
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - apt-transport-https
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    update_cache: true
+
+- name: Add GPG keys
+  ansible.builtin.apt_key:
+    url: "{{ item }}"
+    state: present
+  with_items:
+    - https://download.docker.com/linux/ubuntu/gpg
+    - https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key
+    - https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
+
+- name: Add repositories
+  ansible.builtin.apt_repository:
+    repo: "{{ item }}"
+    state: present
+  with_items:
+    - deb https://download.docker.com/linux/ubuntu {{ ansible_facts["distribution_release"] }} stable
+    - deb https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /
+    - deb https://packages.buildkite.com/helm-linux/helm-debian/any/ any main
+
+- name: Update all packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    name: "*"
+    state: latest
+
+- name: Ensure packages required for setup are installed
+  ansible.builtin.apt:
+    name:
+      - containerd.io
+      - kubelet
+      - kubeadm
+      - kubectl
+      - helm
+    state: present
+
+- name: Hold Kube packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl

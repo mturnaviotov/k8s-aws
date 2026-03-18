@@ -20,3 +20,4 @@
     ansible.builtin.shell: |
       mkdir -p /opt/local-path-provisioner
       chmod 777 /opt/local-path-provisioner
+    when: use_local_path_storage

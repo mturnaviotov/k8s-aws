@@ -6,6 +6,11 @@ I use my own personal domain and free dns.he.net with dynamic dns record for who
 
 You can use your own domain and dns provider with same principles.
 
+_-NOTICE-_ Our demo environment assumes that we install all services for the bare cluster,
+_-NOTICE-_ otherwise we will not be able to deploy the infrastructure via terraform succesfully.
+_-NOTICE-_ If we install it in a virtual OrbStack - the CNI in the cluster is already based on flannel and,
+_-NOTICE-_ for example, network policies will not work as expected.
+
 ## Overview
 
 1. **Infrastructure (Terraform)**:
@@ -24,7 +29,7 @@ You can use your own domain and dns provider with same principles.
    - **Finalization**: Reboots all nodes.
    - **Basic Apps**:   Installs basic apps (KeyCloak, Vault).
 
-## prerequisites
+## Prerequisites
 
 - **Terraform** (>= 1.0)
 - **Ansible** (>= 2.9)

@@ -3,3 +3,58 @@ pod_cidr: "10.244.0.0/16"
 cp_dns_name: "{{ cp_dns_name | default('') }}"
 ext_domain: "{{ ext_domain | default('') }}"
 he_net_password: "{{ he_net_password | default('') }}"
+kubectl_command: "kubectl apply --server-side -f"
+
+### Our demo environment assumes that we install all services for the bare cluster,
+### otherwise we will not be able to deploy the infrastructure via terraform succesfully.
+### If we install it in a virtual OrbStack - the CNI in the cluster is already based on Flannel and,
+### for example, network policies will not work as expected.
+
+# As we don't have a network plugin on the bare cluster yet - we must install one before we can proceed
+# with any other deployments. This is a critical step, as the network plugin is responsible for enabling
+# communication between pods, nodes and services within the cluster.
+
+# Flannel is very basic and works well for a simple cluster, but you can switch to another CNI plugin if you prefer. Just set use_flannel to false and add the installation steps for your preferred CNI in the install_basic_deployments.yml task file.
+use_flannel: false
+# flannel_version: "v0.28.1"
+# We use latest, link for versioned releases commented out for now
+flannel_url: "https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml"
+#flannel_manifest_url: "https://github.com/flannel-io/flannel/releases/download/{{ flannel_version }}/kube-flannel.yml"
+
+# Calico is a more feature-rich CNI plugin that provides advanced networking features like network policies, but it can be more complex to set up.
+# If you want to use Calico, set use_calico to true and ensure the manifest URL points to the correct version compatible with your Kubernetes cluster.
+use_calico: true
+calico_version: "v3.31.4"
+calico_urls:
+  - https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/operator-crds.yaml
+  - https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+  - https://docs.projectcalico.org/manifests/calico.yaml
+
+# Traefik is a popular ingress controller that can be used to manage external access to your services.
+# If you want to use Traefik, set use_traefik to true and ensure the manifest URLs point to the correct versions
+#compatible with your Kubernetes cluster.
+use_traefik: true
+traefik_version: "v3.6"
+traefik_urls:
+  - https://raw.githubusercontent.com/traefik/traefik/{{ traefik_version }}/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+  - https://raw.githubusercontent.com/traefik/traefik/{{ traefik_version }}/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
+
+# Cert-Manager is a powerful tool for managing TLS certificates within your Kubernetes cluster.
+#It can automatically obtain and renew certificates from various sources, including Let's Encrypt.
+use_cert_manager: true
+cert_manager_version: v1.19.2
+cert_manager_crds_url: https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.crds.yaml
+
+use_metallb: true
+metallb_urls:
+  - https://raw.githubusercontent.com/metallb/metallb/refs/heads/main/config/crd/bases/metallb.io_ipaddresspools.yaml
+  - https://raw.githubusercontent.com/metallb/metallb/refs/heads/main/config/crd/bases/metallb.io_l2advertisements.yaml
+
+use_argocd: true
+argocd_urls:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/appproject-crd.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/application-crd.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/refs/heads/master/manifests/crds/applicationset-crd.yaml
+
+use_local_path_storage: true
+local_path_storage_manifest_url: https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml

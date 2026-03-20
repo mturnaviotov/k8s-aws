@@ -12,7 +12,8 @@
         --apiserver-advertise-address={{ private_ip }}
         --ignore-preflight-errors=Swap,NumCPU,Mem
         {% if cp_dns_name %}
-        --apiserver-cert-extra-sans={{ cp_dns_name }} 
+        --apiserver-cert-extra-sans={{ cp_dns_name }}
+        --control-plane-endpoint={{ cp_dns_name }}:6443
         {% endif %}
       register: kubeadm_init_result
       args:

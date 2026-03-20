@@ -3,7 +3,14 @@ secret_key = "IAM user secret key"
 vpc_id     = "VPC ID where resources will be created"
 region       = "eu-north-1"
 
-# Very basic setup for test purposes - 1,2 application
+# DEBUG One node testing
+cp_count     = 1
+cp_type      = "t3.small"
+worker_count = 1
+worker_type = "t3.small"
+
+# Very basic setup for test purposes - 1,2 application - 
+# _-NOTICE-_: Default AWS account have 8 vCPU limit, so you can't use more than 4 EC2 with 2 vCPU 
 cp_count     = 1
 cp_type      = "t3.large"
 worker_count = 3

@@ -13,7 +13,7 @@
       tags: k8s-prerequisites
 
 # =================================================================
-# PART 2: CONTROL PLANE INITIALIZATION (EXECUTED ONLY ON CP)
+# PART 2: CLUSTER INITIALIZATION (EXECUTED ONLY ON 1ST CP)
 # =================================================================
 - name: K8S Control Plane Setup
   hosts: control_plane[0]
@@ -22,6 +22,34 @@
   roles:
     - role: k8s_control
       tags: k8s-control
+
+# =================================================================
+# PART 2.1: ALL CONTROL PLANE JOIN
+# =================================================================
+- name: Get join command from control plane 0
+  hosts: control_plane[0]
+  tags: k8s-control
+  run_once: true
+  become: true
+  tasks:
+    - name: Generate join command
+      ansible.builtin.shell: |
+        hash=$(kubeadm init phase upload-certs --upload-certs | grep -v upload)
+        kubeadm token create --print-join-command --certificate-key $hash
+      register: cp_join_command
+      when: groups['control_plane'] | length > 1
+
+- name: Join control plane pool
+  hosts: control_plane[1:]
+  tags: [k8s-control]
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Run join command
+      ansible.builtin.shell: "{{ hostvars[groups['control_plane'][0]]['cp_join_command']['stdout'] }}"
+      when: groups['control_plane'] | length > 1
+      args:
+        creates: /etc/kubernetes/kubelet.conf
 
 # =================================================================
 # PART 3: WORKER NODE JOIN (EXECUTED ONLY ON WORKERS)
@@ -51,7 +79,6 @@
 # =================================================================
 # PART 5: Keycloak Deployment (EXECUTED ONLY ON CP)
 # =================================================================
-
 - name: Install Basic Apps (KeyCloak, Vault)
   hosts: control_plane[0]
   become: true

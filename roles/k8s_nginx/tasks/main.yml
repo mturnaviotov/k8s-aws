@@ -1,40 +1,42 @@
 ---
-- name: Nginx vHosts for basic services
-  ansible.builtin.template:
-    src: nginx.tpl
-    dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
-    owner: root
-    group: root
-    mode: "0644"
-  loop: "{{ nginx_basics }}"
-  notify: Reload Nginx
-  tags: nginx_basics
-  
-- name: Nginx vHosts for Kubernetes Services
-  ansible.builtin.template:
-    src: nginx.tpl
-    dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
-    owner: root
-    group: root
-    mode: "0644"
-  loop: "{{ nginx_vhosts }}"
-  notify: Reload Nginx
-  tags: nginx_all
+- name: Install Nginx
+  block:
+    - name: Nginx vHosts for basic services
+      ansible.builtin.template:
+        src: nginx.tpl
+        dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ nginx_basics }}"
+      notify: Reload Nginx
+      tags: nginx_basics
 
-- name: Create SSL certificates with Certbot for Nginx
-  ansible.builtin.shell: |
-    certbot --nginx -n --agree-tos --email admin@{{ ext_domain }} -d {{ item.service_name }}.{{ ext_domain }} --redirect
-  loop: "{{ nginx_basics }}"
-  args:
-    creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
-  notify: Reload Nginx
-  tags: nginx_basics
+    - name: Nginx vHosts for Kubernetes Services
+      ansible.builtin.template:
+        src: nginx.tpl
+        dest: /etc/nginx/sites-enabled/{{ item.service_name }}.conf
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ nginx_vhosts }}"
+      notify: Reload Nginx
+      tags: nginx_all
 
-- name: Create SSL certificates with Certbot for Nginx
-  ansible.builtin.shell: |
-    certbot --nginx -n --agree-tos --email admin@{{ ext_domain }} -d {{ item.service_name }}.{{ ext_domain }} --redirect
-  loop: "{{ nginx_vhosts }}"
-  args:
-    creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
-  notify: Reload Nginx
-  tags: nginx_all
+    - name: Create SSL certificates with Certbot for Nginx
+      ansible.builtin.shell: |
+        certbot --nginx -n --agree-tos --email admin@{{ ext_domain }} -d {{ item.service_name }}.{{ ext_domain }} --redirect
+      loop: "{{ nginx_basics }}"
+      args:
+        creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
+      notify: Reload Nginx
+      tags: nginx_basics
+
+    - name: Create SSL certificates with Certbot for Nginx
+      ansible.builtin.shell: |
+        certbot --nginx -n --agree-tos --email admin@{{ ext_domain }} -d {{ item.service_name }}.{{ ext_domain }} --redirect
+      loop: "{{ nginx_vhosts }}"
+      args:
+        creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
+      notify: Reload Nginx
+      tags: nginx_all

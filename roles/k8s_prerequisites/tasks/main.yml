@@ -46,6 +46,6 @@
   ansible.builtin.copy:
     content: |
       [Service]
-      Environment="KUBELET_EXTRA_ARGS=--eviction-hard=memory.available<50Mi --eviction-minimum-reclaim=memory.available=0Mi"
+      Environment="KUBELET_EXTRA_ARGS=--eviction-hard=memory.available<50Mi --eviction-minimum-reclaim=memory.available=0Mi --eviction-hard=nodefs.available<500Mi,imagefs.available<1Gi"
     dest: /etc/systemd/system/kubelet.service.d/20-custom-eviction.conf
   notify: Restart Kubelet

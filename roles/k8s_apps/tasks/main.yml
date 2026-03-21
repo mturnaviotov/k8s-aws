@@ -72,3 +72,8 @@
         path: vault_password.txt
         create: yes
         line: "{{ vault_password }}"
+
+- include_role:
+    name: k8s_nginx
+    apply:
+      tags: nginx_basics

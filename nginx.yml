@@ -1,6 +1,4 @@
 ---
-# ansible-playbook -i inventory k8.yml -e "cp_dns_name=cp.example.com" -e "he_net_password=your_he_password"  -e "ext_domain=your.domain.com"
-
 # =================================================================
 # PART 1: COMMON TASKS (EXECUTED ON ALL K8S NODES)
 # =================================================================
@@ -8,6 +6,6 @@
   hosts: control_plane
   become: true
   gather_facts: false
-  
+  tags: nginx_all
   roles:
     - role: k8s_nginx

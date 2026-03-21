@@ -30,4 +30,5 @@ nginx_vhosts:
     port: 80
   - service_name: todo
     namespace: todo
+    host: todo-backend
     port: 80

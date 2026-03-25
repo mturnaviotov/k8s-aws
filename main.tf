@@ -84,6 +84,7 @@ resource "aws_instance" "cp_servers" {
   vpc_security_group_ids = [aws_security_group.ssh_access.id]
   key_name               = aws_key_pair.app-server-key.key_name
 
+  source_dest_check = false
   tags = {
     Name    = "cp-${count.index + 1}"
     Project = "TerraformCluster"
@@ -101,6 +102,8 @@ resource "aws_instance" "workers_servers" {
   subnet_id              = data.aws_subnet.my_subnet.id #aws_subnet.example.id
   vpc_security_group_ids = [aws_security_group.ssh_access.id]
   key_name               = aws_key_pair.app-server-key.key_name
+
+  source_dest_check = false
   tags = {
     Name    = "worker-${count.index + 1}"
     Project = "TerraformCluster"

@@ -73,7 +73,8 @@
         create: yes
         line: "{{ vault_password }}"
 
-- include_role:
+- name: Setup Basic Nginx services
+  include_role:
     name: k8s_nginx
-    apply:
-      tags: nginx_basics
+  vars:
+    target_services: "{{ nginx_services | selectattr('type', 'equalto', 'basic') | list }}"

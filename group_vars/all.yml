@@ -1,0 +1,42 @@
+---
+basics: true
+nginx_services:
+  - service_name: keycloak
+    namespace: auth
+    type: basic
+    port: 8080
+  - service_name: vault
+    namespace: vault
+    type: basic
+    port: 8200
+  - service_name: traefik
+    namespace: ingress
+    type: all
+    port: 80
+  - service_name: jenkins
+    namespace: jenkins
+    type: all
+    port: 8080
+  - service_name: argocd
+    host: argocd-server
+    namespace: argocd
+    type: all
+    port: 80
+  - service_name: alloy
+    namespace: mon
+    type: all
+    port: 12345
+  - service_name: loki
+    namespace: mon
+    type: all
+    port: 3100
+  - service_name: grafana
+    host: kps-grafana
+    namespace: mon
+    type: all
+    port: 80
+  - service_name: todo
+    namespace: todo
+    host: todo-backend
+    type: all
+    port: 80

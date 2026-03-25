@@ -156,7 +156,7 @@ When all applications are deployed, they should be resolved via internal ${servi
 You also should provide cname for all applications in your dns provider and domain to point to control plane node as it will be your proxy.
 
 ```bash
-ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com" --tags=nginx_all
+ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
 ```
 
 ### Variables

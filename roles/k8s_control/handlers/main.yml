@@ -1,6 +1,5 @@
 ---
-# Not used due to final reboot
-- name: Reload Resolver
+- name: Restart systemd-resolved
   ansible.builtin.service:
     name: systemd-resolved
     daemon_reload: true

@@ -70,11 +70,12 @@
 
     - name: Set up Resolver
       ansible.builtin.lineinfile:
-        regexp: "#ReadEtcHosts=yes$"
         path: /etc/systemd/resolved.conf
         line: |
           DNS=10.96.0.10 8.8.8.8 2001:4860:4860::8888
           Domains=~svc.cluster.local ~.
+        insertafter: EOF
+      notify: Restart systemd-resolved
 
     - name: Replace API server IP with DNS name in user's kubeconfig
       ansible.builtin.replace:

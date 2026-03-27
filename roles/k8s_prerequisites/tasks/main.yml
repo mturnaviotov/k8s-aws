@@ -37,6 +37,16 @@
     sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
   notify: Restart containerd
 
+- name: Set up Resolver
+  ansible.builtin.blockinfile:
+    path: /etc/systemd/resolved.conf
+    content: |
+      DNS=10.96.0.10 8.8.8.8 2001:4860:4860::8888
+      Domains=~svc.cluster.local ~.
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    insertafter: EOF
+  notify: Restart systemd-resolved
+
 - name: Create systemd drop-in directory for kubelet
   ansible.builtin.file:
     path: /etc/systemd/system/kubelet.service.d

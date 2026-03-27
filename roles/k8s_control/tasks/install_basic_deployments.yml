@@ -5,10 +5,18 @@
   when: use_flannel and not use_calico
 
 - name: Install Calico CNI (Container Network Interface)
-  ansible.builtin.shell: |
-    {{ kubectl_command }} {{ item }}
+  block:
+    - name: Copy Calico manifest to control plane node
+      ansible.builtin.copy:
+        src: ../files/calico-tigera.yaml
+        dest: /tmp/calico-tigera.yaml
+
+    - name: Install Calico CNI (Container Network Interface)
+      ansible.builtin.shell: |
+        helm repo add projectcalico https://docs.tigera.io/calico/charts
+        helm repo update
+        helm install calico projectcalico/tigera-operator --version {{ calico_version }} -f /tmp/calico-tigera.yaml --namespace tigera-operator --create-namespace
   when: use_calico and not use_flannel
-  with_items: "{{ calico_urls }}"
 
 - name: Install Traefik CRDs
   ansible.builtin.shell: |

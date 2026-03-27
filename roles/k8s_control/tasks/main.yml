@@ -27,15 +27,16 @@
         mode: "0700"
 
     - name: Update crontab
-      ansible.builtin.lineinfile:
-        regexp: "^#$"
-        line: |
+      ansible.builtin.blockinfile:
+        path: /etc/crontab
+        content: |
           # Custom cron jobs
           # */10 *  * * *   root    test -x /etc/rc.local/ip.sh || /etc/rc.local/ip.sh >> /var/log/ip_update.log
           @reboot /etc/rc.local/ip.sh
           @daily certbot renew
           #
-        dest: /etc/crontab
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        insertafter: EOF
 
     - name: Set up external IP
       ansible.builtin.shell: |
@@ -67,15 +68,6 @@
         rm -fr /home/ubuntu/.kube/config
         sudo cp -i /etc/kubernetes/admin.conf /home/{{ ansible_user }}/.kube/config
         sudo chown {{ ansible_user }}:{{ ansible_user }} /home/{{ ansible_user }}/.kube/ -R
-
-    - name: Set up Resolver
-      ansible.builtin.lineinfile:
-        path: /etc/systemd/resolved.conf
-        line: |
-          DNS=10.96.0.10 8.8.8.8 2001:4860:4860::8888
-          Domains=~svc.cluster.local ~.
-        insertafter: EOF
-      notify: Restart systemd-resolved
 
     - name: Replace API server IP with DNS name in user's kubeconfig
       ansible.builtin.replace:

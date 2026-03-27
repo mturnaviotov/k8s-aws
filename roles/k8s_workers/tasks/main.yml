@@ -24,8 +24,9 @@
       when: use_local_path_storage
 
     - name: Add evictions configuration
-      ansible.builtin.lineinfile:
+      ansible.builtin.blockinfile:
         path: /var/lib/kubelet/config.yaml
-        line: "{{ lookup('file', 'evictions.yml') }}"
+        content: "{{ lookup('file', 'evictions.yml') }}"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
         insertafter: EOF
       notify: Restart Kubelet

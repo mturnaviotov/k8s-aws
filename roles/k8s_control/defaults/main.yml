@@ -25,10 +25,6 @@ flannel_url: "https://github.com/flannel-io/flannel/releases/latest/download/kub
 # If you want to use Calico, set use_calico to true and ensure the manifest URL points to the correct version compatible with your Kubernetes cluster.
 use_calico: true
 calico_version: "v3.31.4"
-calico_urls:
-  - https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/operator-crds.yaml
-  - https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
-  - https://docs.projectcalico.org/manifests/calico.yaml
 
 # Traefik is a popular ingress controller that can be used to manage external access to your services.
 # If you want to use Traefik, set use_traefik to true and ensure the manifest URLs point to the correct versions

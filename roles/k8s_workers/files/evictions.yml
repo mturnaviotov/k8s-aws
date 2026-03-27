@@ -1,0 +1,13 @@
+evictionHard:
+  memory.available: "500Mi"
+  nodefs.available: "7%"
+  nodefs.inodesFree: "7%"
+evictionSoft:
+  memory.available: "1.5Gi"
+  nodefs.available: "4%"
+  nodefs.inodesFree: "4%"
+evictionSoftGracePeriod:
+  memory.available: "2m"
+  nodefs.available: "5m"
+  nodefs.inodesFree: "5m"
+evictionMaxPodGracePeriod: 120

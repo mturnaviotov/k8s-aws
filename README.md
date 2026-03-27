@@ -131,7 +131,7 @@ ansible-playbook -i inventory main.yml \
 For public access from terraform you need to install Nginx as proxy for KeyCloak and Vault as prerequrements. Currently we use control plane node as bastion host for all access and proxying.
 
 ```bash
-ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com" --tags=nginx_basics
+ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
 ```
 
 #### 2. KeyCloak preparation

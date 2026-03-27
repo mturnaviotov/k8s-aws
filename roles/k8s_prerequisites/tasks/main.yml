@@ -41,11 +41,3 @@
   ansible.builtin.file:
     path: /etc/systemd/system/kubelet.service.d
     state: directory
-
-- name: Apply adjusted hard eviction threshold (e.g., 50Mi instead of 100Mi)
-  ansible.builtin.copy:
-    content: |
-      [Service]
-      Environment="KUBELET_EXTRA_ARGS=--eviction-hard=memory.available<50Mi --eviction-minimum-reclaim=memory.available=0Mi --eviction-hard=nodefs.available<500Mi,imagefs.available<1Gi"
-    dest: /etc/systemd/system/kubelet.service.d/20-custom-eviction.conf
-  notify: Restart Kubelet

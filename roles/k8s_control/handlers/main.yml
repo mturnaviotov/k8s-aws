@@ -3,4 +3,5 @@
 - name: Reload Resolver
   ansible.builtin.service:
     name: systemd-resolved
-    state: reloaded
+    daemon_reload: true
+    state: restarted

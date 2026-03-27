@@ -2,4 +2,5 @@
 - name: Reload Nginx
   ansible.builtin.service:
     name: nginx
-    state: reloaded
+    daemon_reload: true
+    state: restarted

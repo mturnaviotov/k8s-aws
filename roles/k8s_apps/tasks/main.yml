@@ -29,6 +29,9 @@
         create: yes
         line: "{{ keycloak_password }}"
 
+  notify:
+    - Restart systemd-resolved
+
 - name: Deploy Vault
   block:
     - name: Create random Vault password
@@ -72,6 +75,12 @@
         path: vault_password.txt
         create: yes
         line: "{{ vault_password }}"
+
+  notify:
+    - Restart systemd-resolved
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
 
 - name: Setup Basic Nginx services
   include_role:

@@ -1,4 +1,3 @@
----
 - name: Install Nginx
   block:
     - name: Nginx vHosts for basic services
@@ -9,7 +8,10 @@
         group: root
         mode: "0644"
       loop: "{{ target_services }}"
-      notify: Reload Nginx
+      notify: Restart Nginx
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
 
     - name: Create SSL certificates with Certbot for Nginx
       ansible.builtin.shell: |
@@ -17,4 +19,4 @@
       loop: "{{ target_services }}"
       args:
         creates: "/etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem"
-      notify: Reload Nginx
+      notify: Restart Nginx

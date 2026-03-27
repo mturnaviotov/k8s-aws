@@ -85,6 +85,12 @@ resource "aws_instance" "cp_servers" {
   key_name               = aws_key_pair.app-server-key.key_name
 
   source_dest_check = false
+
+  root_block_device {
+    volume_size           = 10    # Розмір у ГБ
+    volume_type           = "gp3" # Швидший та дешевшій за gp2
+    delete_on_termination = true
+  }
   tags = {
     Name    = "cp-${count.index + 1}"
     Project = "TerraformCluster"
@@ -104,6 +110,13 @@ resource "aws_instance" "workers_servers" {
   key_name               = aws_key_pair.app-server-key.key_name
 
   source_dest_check = false
+
+  root_block_device {
+    volume_size           = 20    # Розмір у ГБ
+    volume_type           = "gp3" # Швидший та дешевшій за gp2
+    delete_on_termination = true
+  }
+
   tags = {
     Name    = "worker-${count.index + 1}"
     Project = "TerraformCluster"

@@ -37,6 +37,6 @@ nginx_services:
     port: 80
   - service_name: todo
     namespace: todo
-    host: todo-backend
+    host: todo-frontend
     type: all
     port: 80

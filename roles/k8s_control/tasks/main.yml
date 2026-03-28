@@ -16,10 +16,10 @@
     - name: Create IP update script
       ansible.builtin.copy:
         content: |
-          DNS={{ cp_dns_name }}
+          DNSNAME={{ cp_dns_name }}
           PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-          PWD={{ he_net_password }}
-          curl "https://dyn.dns.he.net/nic/update?hostname=${DNS}&password=${PWD}&myip=${PUBLIC_IP}"
+          PASSWORD={{ he_net_password }}
+          curl "https://dyn.dns.he.net/nic/update?hostname=${DNSNAME}&password=${PASSWORD}&myip=${PUBLIC_IP}"
           echo "{\"status\": \"updated\", \"timestamp\": \"$(date)\", \"ip\": \"${PUBLIC_IP}\"}"
         dest: /etc/rc.local/ip.sh
         owner: root
@@ -32,8 +32,8 @@
         content: |
           # Custom cron jobs
           # */10 *  * * *   root    test -x /etc/rc.local/ip.sh || /etc/rc.local/ip.sh >> /var/log/ip_update.log
-          @reboot /etc/rc.local/ip.sh
-          @daily certbot renew
+          @reboot root /etc/rc.local/ip.sh
+          @daily root certbot renew
           #
         marker: "# {mark} ANSIBLE MANAGED BLOCK"
         insertafter: EOF

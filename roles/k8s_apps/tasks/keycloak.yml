@@ -1,0 +1,33 @@
+---
+- name: Deploy KeyCloak
+  block:
+    - name: Create random KeyCloak password
+      ansible.builtin.set_fact:
+        keycloak_password: "{{ lookup('password', '/dev/null length=12 chars=ascii_letters,digits') }}"
+
+    - name: KeyCloak get manifest
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/keycloak/keycloak-quickstarts/refs/heads/main/kubernetes/keycloak.yaml
+        dest: ./keycloak.yaml
+
+    - name: KeyCloak patch root password
+      ansible.builtin.replace:
+        path: ./keycloak.yaml
+        regexp: '(KC_BOOTSTRAP_ADMIN_PASSWORD\s+value:)\s*".*"'
+        replace: '\1 "{{ keycloak_password }}"'
+
+    - name: Install KeyCloak to cluster
+      ansible.builtin.shell: |
+        kubectl create ns auth && kubectl -n auth apply -f ./keycloak.yaml
+        rm -f ./keycloak.yaml
+
+    - name: Save KeyCloak password to file
+      delegate_to: localhost
+      become: false
+      ansible.builtin.lineinfile:
+        path: password_keycloak.txt
+        create: yes
+        line: "{{ keycloak_password }}"
+
+  notify:
+    - Restart systemd-resolved

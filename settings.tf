@@ -38,7 +38,7 @@ variable "cp_type" {
 
 variable "worker_count" {
   description = "Number of worker nodes"
-  default     = 3
+  default     = 2
 }
 
 variable "worker_type" {

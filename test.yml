@@ -1,0 +1,16 @@
+---
+# =================================================================
+# Example of ansible playbook to run some tasks on all nodes
+#
+# ansible-playbook -i inventory test.yml
+#
+# =================================================================
+- name: Test task for docker prune example
+  hosts: workers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Docker maintenance
+      ansible.builtin.shell: |
+        docker system prune --volumes --all --force
+        docker builder prune -a

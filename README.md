@@ -6,10 +6,7 @@ I use my own personal domain and free dns.he.net with dynamic dns record for who
 
 You can use your own domain and dns provider with same principles.
 
-_-NOTICE-_ Our demo environment assumes that we install all services for the bare cluster,
-_-NOTICE-_ otherwise we will not be able to deploy the infrastructure via terraform succesfully.
-_-NOTICE-_ If we install it in a virtual OrbStack - the CNI in the cluster is already based on flannel and,
-_-NOTICE-_ for example, network policies will not work as expected.
+_NOTICE_: Our demo environment assumes that we install all services for the bare cluster, otherwise we will not be able to deploy the infrastructure via terraform succesfully. If we install it in a virtual OrbStack - the CNI in the cluster is already based on flannel and, for example, network policies will not work as expected.
 
 ## Overview
 
@@ -22,12 +19,12 @@ _-NOTICE-_ for example, network policies will not work as expected.
    - **Node Preparation**: Installs dependencies, configures kernel modules, sysctl, containerd.
    - **Control Plane Initialization**:
      - Initalize cluster.
-     - Installs Flannel CNI.
+     - Installs Calico CNI.
      - Installs basic CRDs (Traefik, Cert-Manager, ArgoCD).
-     - Automates SSL certificates via Certbot from Lets Encrypt.
    - **Worker Join**:  Joins worker nodes to the cluster.
    - **Finalization**: Reboots all nodes.
    - **Basic Apps**:   Installs basic apps (KeyCloak, Vault).
+   - Automates SSL certificates via Certbot from Lets Encrypt for basic and other apps.
 
 ## Prerequisites
 
@@ -45,22 +42,20 @@ Navigate to the project directory.
 
 Create a `terraform.tfvars` file (use `terraform.tfvars.default` as a template) to configure your specific settings:
 
-TODO: Currently only 1 control plane node is supported.
-
 You can use one micro and one medium instances for deploy one application for testing purposes, but it will not be enough for proper work.
 
-_WARNING_: You can use t3.large instance type for control plane and worker nodes as they use lots of memory.
+_NOTICE_: You can use t3.large instance type for control plane and worker nodes as they use lots of memory
 
-_WARNING_: Basic AWS account have a 8 vCPU limit. So you can use only 1 control plane node and 3 worker nodes without any fails from terraform side. This is NOT enought to serve all provided applications, so for more efficiency you can request 16 vCPU via AWS console.
+_WARNING_: Basic AWS account have a 8 vCPU limit. So you can use only 1 control plane node and 3 worker nodes without any fails from terraform side. If you want nore nodes - You can raise AWS request for 16 vCPUs extension.
 
 ```hcl
 access_key   = "YOUR_AWS_ACCESS_KEY"
 secret_key   = "YOUR_AWS_SECRET_KEY"
 vpc_id       = "vpc-xxxxxxxx"  # Existing VPC ID
 region       = "eu-north-1"    # Target Region
-cp_count     = 1               # Number of Control Plane nodes # currently supported only 1 control plane node
+cp_count     = 1               # Number of Control Plane nodes
 cp_type      = "t3.large"      # Control Plane instance type
-worker_count = 3               # Number of Worker nodes
+worker_count = 2               # Number of Worker nodes - 2 with 20Gb storage is okay for our infrastructure
 worker_type  = "t3.large"      # Worker instance type
 ```
 
@@ -99,7 +94,9 @@ Once the infrastructure is ready and the `inventory` file is generated, you can 
 
 ### Setup basic cluster
 
-#### 0. Run the `main.yml` playbook with the required variables in comman line
+#### Init K8s cluster
+
+Run the `main.yml` playbook with the required variables in command line
 
 I use free dns.he.net with dynamic dns record for whole cluster services via HE.net api and my private domain.
 Role based variables you can find in role/${name}/defaults.
@@ -114,37 +111,38 @@ ansible-playbook -i inventory main.yml \
 You can use partial configuration via tags if you need, or in case of re-run after network issues, or if you need to update something. You can find available tags at the main.yaml in roles, and use as in this example.
 
 - k8s-prerequisites - Install K8s prerequisites to all nodes.
-- k8s-control       - Install K8s control plane to control plane nodes, Flannel and basic CRDs (Traefik, Cert-Manager, MetalLB,ArgoCD).
-- k8s-workers       - Install K8s to worker nodes.
-- k8s-apps          - Install basic apps to cluster - KeyCloak, Vault.
+- k8s-control       - Initialize K8s cluster and control planes, install Calico CNI and basic CRDs (Traefik, Cert-Manager, MetalLB, ArgoCD).
+- k8s-workers       - Install K8s to worker nodes and apply local-path-provisioner for K8 PVC claims.
+- k8s-apps          - Install basic required apps to cluster - KeyCloak, Vault. Store generated passwords to password_$(service).txt
+- k8s-nginx         - Nginx and CertBot configuration
 
 ```bash
 ansible-playbook -i inventory main.yml \
   -e "cp_dns_name=cp.example.com" \
   -e "he_net_password=your_he_password" \
-  -e "ext_domain=your.domain.com"
+  -e "ext_domain=your.domain.com" \
   --tags="k8s-apps"
 ```
 
 #### 1. Install basic Nginx for KeyCloak and Vault
 
-For public access from terraform you need to install Nginx as proxy for KeyCloak and Vault as prerequrements. Currently we use control plane node as bastion host for all access and proxying.
-
-```bash
-ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
-```
+For public access from terraform you need to install Nginx as proxy for KeyCloak and Vault as prerequrements. Currently we use control plane node as bastion host for all access and proxying. Nginx for basic KeyCloak and Vault services with LetsEncrypt based SSL triggered from k8s-apps role
 
 #### 2. KeyCloak preparation
 
-- Go to the web UI for KeyCloak (<https://keycloak.your.domain.com> in case of cname record for keycloak.your.domain.com pointing to control plane node) with provided via text file password.
-- Go to clients -> choose 'admin-cli'.
-- Enable client authentication, save.
-- Go to credentials tab and copy client secret to terraform.vars in your infra repo.
+- Ansible will create random password for KeyCloak root user and save it to password_keycloak.txt file.
+  And you can use it to login to KeyCloak web UI.
+  Also admin-cli client secret will be created and saved to password_keycloak_secret.txt file - You need update terraform variables for keycloak password and adminc-cli secret for deploy all infra.
+
+  _NOTICE_: In case of manual re-installation You will need to create secrets manually via this script (it use internal svc.cluster.local url by default) before changing anything for admin user in master realm.
+
+  ```bash
+  ./set-keycloak.sh -u admin -p <admin_password> -k <keycloak_url>
+  ```
 
 #### 3. Vault unseal
 
-- Go to the web UI for Vault (<https://vault.your.domain.com> in case of cname record for vault.your.domain.com pointing to control plane node) and unseal it via web interface.
-- Save api token and keys to your infra repo.
+- Vault is unsealed for our testing purposes via patching values file in k8s-apps role. You should _DISABLE_ this steps in real world, and unseal it manually and save api token and keys to your infra repo manually.
 
 #### 4. Install infra
 
@@ -153,7 +151,7 @@ ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
 #### 5. Install Nginx for all applications
 
 When all applications are deployed, they should be resolved via internal ${service}.${namespace}.svc.cluster.local before nginx will work with upstreams. You can test it via `kubectl exec -it -n <namespace> <pod-name> -- curl -I <service>.<namespace>.svc.cluster.local` from any node from cluster.
-You also should provide cname for all applications in your dns provider and domain to point to control plane node as it will be your proxy.
+You also should provide cname for all applications in your dns provider and domain to point to control plane node as it will be your proxy before cert-bot can achieve certificates for your apps.
 
 ```bash
 ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
@@ -178,3 +176,13 @@ ansible-playbook -i inventory nginx.yml -e "ext_domain=your.domain.com"
   - `main.yml`: Main playbook.
   - `inventory`: Generated inventory file from terraform .
   - `nginx.tpl`: Nginx configuration template for external/public usage.
+
+## Some useful commands
+
+```bash
+# Disk pressure disable toleration
+for i in `kubectl get nodes | awk '{print $1}' | grep -v NAME`; do kubectl taint nodes $i node.kubernetes.io/disk-pressure-; done
+
+# Delete failed pods
+kubectl delete pods --field-selector 'status.phase==Failed' -A
+```

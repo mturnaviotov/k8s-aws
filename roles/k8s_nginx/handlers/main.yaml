@@ -1,6 +1,3 @@
 ---
 - name: Restart Nginx
-  ansible.builtin.service:
-    name: nginx
-    daemon_reload: true
-    state: restarted
+  ansible.builtin.shell: killall -9 nginx; systemctl start nginx

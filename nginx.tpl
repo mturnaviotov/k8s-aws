@@ -9,7 +9,7 @@ upstream backend_{{ item.service_name }} {
 server {
   root /var/www/html;
   index index.html index.htm index.nginx-debian.html;
-  server_name {{ item.service_name }}.{{ ext_domain }}; # managed by Certbot
+  server_name {{ item.service_name }}.{{ ext_domain }};
 
   location / {
     proxy_pass http://backend_{{ item.service_name }};
@@ -28,11 +28,4 @@ server {
     internal;
     root /usr/share/nginx/html;
   }
-
-#  listen [::]:443 ssl; # managed by Certbot
-#  listen 443 ssl; # managed by Certbot
-#  ssl_certificate /etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/fullchain.pem; # managed by Certbot
-#  ssl_certificate_key /etc/letsencrypt/live/{{ item.service_name }}.{{ ext_domain }}/privkey.pem; # managed by Certbot
-#  include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-#  ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }

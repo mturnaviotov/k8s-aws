@@ -26,13 +26,13 @@
 # =================================================================
 # PART 2.1: ALL CONTROL PLANE JOIN
 # =================================================================
-- name: Get join command from control plane 0
+- name: Control plane pool
   hosts: control_plane[0]
   tags: k8s-control
   run_once: true
   become: true
   tasks:
-    - name: Generate join command
+    - name: Generate join for control plane pool
       ansible.builtin.shell: |
         hash=$(kubeadm init phase upload-certs --upload-certs | grep -v upload)
         kubeadm token create --print-join-command --certificate-key $hash
@@ -45,7 +45,7 @@
   become: true
   gather_facts: false
   tasks:
-    - name: Run join command
+    - name: Join control plane pool
       ansible.builtin.shell: "{{ hostvars[groups['control_plane'][0]]['cp_join_command']['stdout'] }}"
       when: groups['control_plane'] | length > 1
       args:

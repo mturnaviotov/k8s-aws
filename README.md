@@ -134,7 +134,7 @@ For public access from terraform you need to install Nginx as proxy for KeyCloak
   And you can use it to login to KeyCloak web UI.
   Also admin-cli client secret will be created and saved to password_keycloak_secret.txt file - You need update terraform variables for keycloak password and adminc-cli secret for deploy all infra.
 
-  _NOTICE_: In case of manual re-installation You will need to create secrets manually via this script (it use internal svc.cluster.local url by default) before changing anything for admin user in master realm.
+  _NOTICE_: In case of manual re-installation You will need to create secrets manually via this script (it use internal svc.cluster.local url by default) before changing anything for admin user in master realm. If you restart/reinstall KeyCLoak - you need to wait ~2 minutes before it started
 
   ```bash
   ./set-keycloak.sh -u admin -p <admin_password> -k <keycloak_url>

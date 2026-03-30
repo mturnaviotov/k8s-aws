@@ -20,6 +20,26 @@
       ansible.builtin.shell: |
         kubectl create ns auth && kubectl -n auth apply -f ./keycloak.yaml
         rm -f ./keycloak.yaml
+      notify:
+        - Restart systemd-resolved
+
+    - meta: flush_handlers
+
+    - name: Copy set-keycloak.sh script to control plane node
+      ansible.builtin.copy:
+        src: set-keycloak.sh
+        dest: /home/ubuntu/set-keycloak.sh
+        mode: "0777"
+
+    - name: Wait until KeyCloak starts
+      ansible.builtin.shell: |
+        kubectl debug -it -n auth keycloak-0 --profile=general --image nginx -- /bin/bash -c 'until curl -s localhost:9000/health | grep UP; do echo wait for master up; sleep 5; done'
+
+    - name: Update KeyCloak client secret for admin-cli
+      become: false
+      ansible.builtin.shell: |
+        bash /home/ubuntu/set-keycloak.sh -u admin -p {{ keycloak_password }} -k http://keycloak.auth.svc.cluster.local:8080
+      register: keycloak_client_secret
 
     - name: Save KeyCloak password to file
       delegate_to: localhost
@@ -29,5 +49,10 @@
         create: yes
         line: "{{ keycloak_password }}"
 
-  notify:
-    - Restart systemd-resolved
+    - name: Save KeyCloak client secret to file
+      delegate_to: localhost
+      become: false
+      ansible.builtin.lineinfile:
+        path: password_keycloak_secret.txt
+        create: yes
+        line: "{{ keycloak_client_secret.stdout }}"

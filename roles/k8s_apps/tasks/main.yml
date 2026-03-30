@@ -7,8 +7,6 @@
   include_tasks:
     file: vault.yml
 
-- meta: flush_handlers
-
 - name: Setup Basic Nginx services
   include_role:
     name: k8s_nginx

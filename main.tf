@@ -146,5 +146,5 @@ resource "local_file" "ansible_inventory" {
 
 output "ansible_run" {
   description = "Ansible run command"
-  value       = "ansible-playbook -i inventory main.yml -e 'cp_dns_name=cp.your.domain.com' -e 'he_net_password=dynamic_dns_record_password_here'"
+  value       = "ansible-playbook -i inventory main.yml -e 'cp_dns_name=cp.your.domain.com' -e 'ext_domain=your.domain.com' -e 'he_net_password=dynamic_dns_record_password_here'"
 }
